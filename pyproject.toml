@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fileunity"
-version = "0.0.1"
-description = "fileunity"
+version = "0.1.0"
+description = "easy data objects to load and save"
 readme = "README.rst"
 authors = [
     { name = "Johannes", email = "johannes-programming@posteo.org" },
@@ -20,6 +20,7 @@ classifiers = [
 keywords = []
 dependencies = [
     "tomli_w>=1.0",
+    "seqreads>=0.1"
 ]
 requires-python = ">=3.11"
 

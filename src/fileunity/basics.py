@@ -42,18 +42,32 @@ class TextUnit(PrintableUnit):
     def data_saving(cls, file, data):
         with open(file, "w") as stream:
             stream.write('\n'.join(data) + '\n')
+    def clear(self):
+        self._data.clear()
     def __getitem__(self, key):
-        return self.data[key]
+        if type(key) is str:
+            return self.data[key]
+        obj = self.data
+        for k in key:
+            obj = obj[k]
+        return obj
     def __setitem__(self, key, value):
         cls = type(self)
         data = self.data
         data[key] = value
-        return cls(data)
+        self._data = self.data_duplicating(data)
     def __delitem__(self, key):
         cls = type(self)
         data = self.data
-        del data[key]
-        return cls(data)
+        if type(key) is str:
+            del data[key]
+        else:
+            *findkeys, killkey = list(key)
+            obj = data
+            for k in findkeys:
+                obj = obj[k]
+            del obj[killkey]
+        self._data = self.data_duplicating(data)
     def __iter__(self):
         return (x for x in self._data)
     def __len__(self):
@@ -94,18 +108,20 @@ def TOMLUnit(PrintableUnit):
     def data_saving(cls, file, data):
         with open(file, "wb") as stream:
             return _tomli_w.dump(stream)
+    def clear(self):
+        self._data.clear()
     def __getitem__(self, key):
         return self.data[key]
     def __setitem__(self, key, value):
         cls = type(self)
         data = self.data
         data[key] = value
-        return cls(data)
+        self._data = self.data_duplicating(data)
     def __delitem__(self, key):
         cls = type(self)
         data = self.data
         del data[key]
-        return cls(data)
+        self._data = self.data_duplicating(data)
     def __len__(self):
         return len(self._data)
     def keys(self):
