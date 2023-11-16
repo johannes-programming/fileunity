@@ -4,6 +4,21 @@ import tomli_w as _tomli_w
 
 
 class BaseUnit:
+    # abstract
+    @classmethod
+    def data_duplicating(data):
+        raise NotImplementedError
+    @classmethod
+    def data_loading(cls, file):
+        raise NotImplementedError
+    @classmethod
+    def data_saving(cls, file, data):
+        raise NotImplementedError
+    @classmethod
+    def data_default(cls):
+        raise NotImplementedError
+
+    #solid
     def __init__(self, data):
         self.data = data
     @property
@@ -17,31 +32,62 @@ class BaseUnit:
         return cls(cls.data_loading(file))
     def save(self, file):
         self.data_saving(file, self._data)
-
-class PrintableUnit(BaseUnit):
-    pass
-
-class TextUnit(PrintableUnit):
     @classmethod
-    def by_str(cls, string):
-        return cls([string])
+    def default(cls):
+        return cls(cls.data_default())
+
+class StrBasedUnit(_basics.BaseUnit):
+    # abstract
     @classmethod
-    def data_duplicating(data):
-        ans = list()
-        for x in data:
-            ans += str(x).split('\n')
-        return ans
+    def data_by_str(cls, string):
+        raise NotImplementedError
+    @classmethod
+    def str_by_data(cls, string):
+        raise NotImplementedError
+
+    # overwrite
+    @classmethod
+    def data_duplicating(cls, data):
+        string = cls.str_by_data(data)
+        return cls.data_by_str(string)
     @classmethod
     def data_loading(cls, file):
-        with open(file, "r") as stream:
-            contents = stream.read()
-        if contents.endswith('\n'):
-            contents = contents[:-1]
-        return [contents]
+        with open(file, "r") as s:
+            string = s.read()
+        if string.endswith('\n'):
+            string = string[:-1]
+        return cls.data_by_str(string)
     @classmethod
     def data_saving(cls, file, data):
+        string = cls.str_by_data(data)
+        if file is None:
+            print(string)
+            return
         with open(file, "w") as stream:
-            stream.write('\n'.join(data) + '\n')
+            stream.write(string + '\n')
+
+    # solid
+    @classmethod
+    def by_str(cls, string):
+        raise cls(cls.data_by_str(string))
+    def __str__(self):
+        return self.str_by_data(self.data)
+    def __repr__(self):
+        return str(self)
+
+class TextUnit(StrBasedUnit):
+    # overwrite
+    @classmethod
+    def data_by_string(cls, string):
+        return str(string).split('\n')
+    @classmethod
+    def str_by_data(cls, data):
+        return '\n'.join(str(x) for x in data)
+    @classmethod
+    def data_default(cls, file, data):
+        return list()
+
+    # solid
     def clear(self):
         self._data.clear()
     def __getitem__(self, key):
@@ -94,36 +140,58 @@ class TextUnit(PrintableUnit):
         return (other in self._data)
 
 
-def TOMLUnit(PrintableUnit):
+def TOMLUnit(StrBasedUnit):
+    # overwrite
     @classmethod
-    def data_duplicating(cls, data):
-        string = _tomli_w.dumps(data)
-        ans = _tomllib.loads(string)
-        return ans
+    def data_default(cls):
+        return dict()
     @classmethod
-    def data_loading(cls, file):
-        with open(file, "rb") as stream:
-            return _tomllib.load(stream)
+    def str_by_data(cls, data):
+        return _tomli_w.dumps(data)
     @classmethod
-    def data_saving(cls, file, data):
-        with open(file, "wb") as stream:
-            return _tomli_w.dump(stream)
-    def clear(self):
-        self._data.clear()
+    def data_by_str(cls, string):
+        return _tomllib.loads(string)
+
+    # solid
+    @classmethod
+    def _getitem(cls, data, key):
+        if type(key) is str:
+            key = [key]
+        for k in key:
+            data = data[k]
+        return data
     def __getitem__(self, key):
-        return self.data[key]
+        return cls._getitem(self.data, key)
     def __setitem__(self, key, value):
-        cls = type(self)
+        if type(key) is str:
+            key = [key]
+        *findkeys, lastkey = key
         data = self.data
-        data[key] = value
-        self._data = self.data_duplicating(data)
+        obj = cls._getitem(data, findkeys)
+        obj[lastkey] = value
+        self.data = data
     def __delitem__(self, key):
-        cls = type(self)
+        if type(key) is str:
+            key = [key]
+        *findkeys, lastkey = key
         data = self.data
-        del data[key]
-        self._data = self.data_duplicating(data)
+        obj = cls._getitem(data, findkeys)
+        del obj[lastkey]
+        self.data = data
     def __len__(self):
         return len(self._data)
+    def __add__(self, other):
+        cls = type(self)
+        other = cls(other)
+        x = dict(**self._data, **other._data)
+        return cls(x)
+    def __radd__(self, other):
+        cls = type(self)
+        other = cls(other)
+        x = dict(**other._data, **self._data)
+        return cls(x)
+    def clear(self):
+        self._data.clear()
     def keys(self):
         x = self._data.keys()
         x = list(x)
@@ -139,20 +207,5 @@ def TOMLUnit(PrintableUnit):
         x = list(x)
         x = (y for y in x)
         return x
-    def __str__(self):
-        return _tomli_w.dumps(data)
-    def __add__(self, other):
-        cls = type(self)
-        other = cls(other)
-        x = dict(**self._data, **other._data)
-        return cls(x)
-    def __radd__(self, other):
-        cls = type(self)
-        other = cls(other)
-        x = dict(**other._data, **self._data)
-        return cls(x)
-
-
-
 
  
