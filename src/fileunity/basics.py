@@ -25,8 +25,8 @@ class BaseUnit:
     def data(self):
         return self.data_duplicating(self._data)
     @data.setter
-    def data(self):
-        return self.data_duplicating(self._data)
+    def data(self, value):
+        self._data = self.data_duplicating(value)
     @classmethod
     def load(cls, file):
         return cls(cls.data_loading(file))
@@ -36,7 +36,7 @@ class BaseUnit:
     def default(cls):
         return cls(cls.data_default())
 
-class StrBasedUnit(_basics.BaseUnit):
+class StrBasedUnit(BaseUnit):
     # abstract
     @classmethod
     def data_by_str(cls, string):
@@ -78,7 +78,7 @@ class StrBasedUnit(_basics.BaseUnit):
 class TextUnit(StrBasedUnit):
     # overwrite
     @classmethod
-    def data_by_string(cls, string):
+    def data_by_str(cls, string):
         return str(string).split('\n')
     @classmethod
     def str_by_data(cls, data):
@@ -91,29 +91,15 @@ class TextUnit(StrBasedUnit):
     def clear(self):
         self._data.clear()
     def __getitem__(self, key):
-        if type(key) is str:
-            return self.data[key]
-        obj = self.data
-        for k in key:
-            obj = obj[k]
-        return obj
+        return self._data[key]
     def __setitem__(self, key, value):
-        cls = type(self)
         data = self.data
         data[key] = value
-        self._data = self.data_duplicating(data)
+        self.data = data
     def __delitem__(self, key):
-        cls = type(self)
         data = self.data
-        if type(key) is str:
-            del data[key]
-        else:
-            *findkeys, killkey = list(key)
-            obj = data
-            for k in findkeys:
-                obj = obj[k]
-            del obj[killkey]
-        self._data = self.data_duplicating(data)
+        del data[key]
+        self.data = data
     def __iter__(self):
         return (x for x in self._data)
     def __len__(self):
@@ -140,7 +126,7 @@ class TextUnit(StrBasedUnit):
         return (other in self._data)
 
 
-def TOMLUnit(StrBasedUnit):
+class TOMLUnit(StrBasedUnit):
     # overwrite
     @classmethod
     def data_default(cls):
@@ -161,13 +147,13 @@ def TOMLUnit(StrBasedUnit):
             data = data[k]
         return data
     def __getitem__(self, key):
-        return cls._getitem(self.data, key)
+        return self._getitem(self.data, key)
     def __setitem__(self, key, value):
         if type(key) is str:
             key = [key]
         *findkeys, lastkey = key
         data = self.data
-        obj = cls._getitem(data, findkeys)
+        obj = self._getitem(data, findkeys)
         obj[lastkey] = value
         self.data = data
     def __delitem__(self, key):
@@ -175,7 +161,7 @@ def TOMLUnit(StrBasedUnit):
             key = [key]
         *findkeys, lastkey = key
         data = self.data
-        obj = cls._getitem(data, findkeys)
+        obj = self._getitem(data, findkeys)
         del obj[lastkey]
         self.data = data
     def __len__(self):
