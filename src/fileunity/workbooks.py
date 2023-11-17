@@ -2,7 +2,7 @@ import os as _os
 
 import openpyxl as _xl
 
-from . import basics as _basics
+from . import _basics
 
 
 class WorkbookUnit(_basics.BaseUnit):

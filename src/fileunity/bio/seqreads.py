@@ -1,7 +1,7 @@
 import Bio.SeqIO as _SeqIO
 import seqreads as _sr
 
-import fileunity.basics as _basics
+from fileunity import _basics
 
 
 class _SeqReadUnit(_basics.BaseUnit):

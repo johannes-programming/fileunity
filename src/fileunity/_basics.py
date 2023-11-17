@@ -1,7 +1,7 @@
 import tomllib as _tomllib
 
-import tomli_w as _tomli_w
 import pandas as _pd
+import tomli_w as _tomli_w
 
 
 class _Stream:

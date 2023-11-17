@@ -1,1 +1,2 @@
-from . import basics, bio
+from . import bio, workbooks
+from ._basics import *
