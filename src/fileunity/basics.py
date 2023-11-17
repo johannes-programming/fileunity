@@ -1,6 +1,7 @@
 import tomllib as _tomllib
 
 import tomli_w as _tomli_w
+import pandas as _pd
 
 
 class _Stream:
@@ -236,3 +237,38 @@ class TOMLUnit(StrBasedUnit):
         return x
 
  
+
+
+class Simple_TSVUnit(StrBasedUnit):
+    @classmethod
+    def data_default(cls):
+        return _pd.DataFrame({})
+    @classmethod
+    def str_by_data(cls, data):
+        data = _pd.DataFrame(data)
+        lines = list()
+        lines.append(list(data.columns))
+        for i, row in data.iterrows():
+            lines.append(list(row))
+        h, w = data.shape
+        h += 1
+        for y in range(h):
+            for x in range(w):
+                lines[y][x] = str(lines[y][x])
+                if '"' in lines[y][x]:
+                    raise ValueError
+                if '\t' in lines[y][x]:
+                    raise ValueError
+            lines[y] = '\t'.join(lines[y])
+        return TextUnit.str_by_data(lines)
+    @classmethod
+    def data_by_str(cls, string):
+        lines = TextUnit.data_by_str(string)
+        for y in range(len(lines)):
+            if '"' in lines[y]:
+                raise ValueError
+            lines[y] = lines[y].split('\t')
+        columns = lines.pop(0)
+        if len(set(columns)) != len(columns):
+            raise ValueError
+        return _pd.DataFrame(lines, columns=columns)
