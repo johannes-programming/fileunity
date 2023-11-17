@@ -2,6 +2,26 @@ import tomllib as _tomllib
 
 import tomli_w as _tomli_w
 
+class _Stream:
+    @classmethod
+    def unitclass(cls):
+        return cls._unitclass
+    def __init__(self, file):
+        self.file = file
+    def read(self):
+        return cls._unitclass.load(self.file)
+    def write(self, unit):
+        if type(unit) is not self._unitclass:
+            raise TypeError
+        unit.save(self.file)
+    def __str__(self):
+        cls = type(self)
+        return f"{cls}(file={self.file})"
+    def __repr__(self):
+        return str(self)
+
+class _Empty:
+    pass
 
 class BaseUnit:
     # abstract
@@ -19,7 +39,12 @@ class BaseUnit:
         raise NotImplementedError
 
     #solid
-    def __init__(self, data):
+    def __init__(self, data=_Empty):
+        cls = type(self)
+        if data is _Empty:
+            data = self.data_default()
+        if type(data) is cls:
+            data = data._data
         self.data = data
     @property
     def data(self):
@@ -32,9 +57,24 @@ class BaseUnit:
         return cls(cls.data_loading(file))
     def save(self, file):
         self.data_saving(file, self._data)
+
     @classmethod
-    def default(cls):
-        return cls(cls.data_default())
+    def streamclass(self):
+        cls = type(self)
+        try:
+            return cls.streamclass
+        except:
+            pass
+        cls.streamclass = type(
+            f"{cls}Stream",
+            [_Stream],
+            {'_unitclass':cls},
+        )
+        return cls.streamclass
+    @classmethod
+    def stream(cls, file):
+        return cls.streamclass()(file)
+
 
 class StrBasedUnit(BaseUnit):
     # abstract
