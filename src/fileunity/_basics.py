@@ -272,3 +272,171 @@ class Simple_TSVUnit(StrBasedUnit):
         if len(set(columns)) != len(columns):
             raise ValueError
         return _pd.DataFrame(lines, columns=columns)
+
+
+
+    @property
+    def fieldnames(self):
+        return list(self._data.columns)
+    @fieldnames.setter
+    def fieldnames(self, value):
+        value = [str(x) for x in value]
+        self._data.columns = value
+    @property
+    def shape(self):
+        return tuple(self._data.shape)
+    @property
+    def width(self):
+        return self.shape[1]
+    @property
+    def height(self):
+        return self.shape[0]
+    def _parse_key_to_pair(self, key):
+        if type(key) is tuple:
+            return key
+        if key is None:
+            return (None, None)
+        if type(key) is str:
+            return (key, None)
+        if type(key) is int:
+            return (None, key)
+        if type(key) is slice:
+            return (None, key)
+        if type(key) is list:
+            if all((type(x) is str) for x in key):
+                return (key, None)
+            else:
+                return (None, key)
+        raise TypeError
+    def _parse_key(self, key):
+        xkey, ykey = self._parse_key_to_pair(key)
+        ykey = self._parse_ykey(ykey)
+        return (xkey, ykey)
+    def _parse_ykey(self, key):
+        if key is None:
+            return list(range(self.height))
+        if type(key) is int:
+            return key
+        if type(key) is slice:
+            return self._list_by_slice(key)
+        if type(key) is list:
+            ans = list()
+            for k in key:
+                ans += self._list_by_listitem(k)
+            return ans
+        raise TypeError
+    def _list_by_listitem(self, item):
+        if type(item) is int:
+            return [item]
+        if type(item) is slice:
+            return self._list_by_slice(item)
+        raise TypeError
+    def _list_by_slice(self, key):
+        indeces = list(range(self.height))
+        indeces = indeces[key]
+        return indeces
+    def __delitem__(self, key):
+        xkey, ykey = self._parse_key(key)
+        if xkey is None:
+            xkey = self.fieldnames
+        if type(xkey) is str:
+            xkey = [xkey]
+        if type(ykey) is int:
+            ykey = [ykey]
+        if (type(xkey) is list) and (type(ykey) is list):
+            self._data.drop(columns=xkey, inplace=True)
+            self._data.drop(index=ykey, inplace=True)
+            return
+        raise TypeError
+    def __getitem__(self, key):
+        cls = type(self)
+        xkey, ykey = self._parse_key(key)
+        if xkey is None:
+            if type(ykey) is int:
+                return self._data.loc[ykey].to_dict()
+            if type(ykey) is list:
+                return cls(self._data.loc[ykey])
+        elif type(xkey) is str:
+            if type(ykey) is int:
+                return str(self._data.at[ykey, xkey])
+            if type(ykey) is list:
+                return self._data.loc[ykey, xkey].tolist()
+        elif type(xkey) is list:
+            if type(ykey) is int:
+                return self._data.loc[ykey, xkey].tolist()
+            if type(ykey) is list:
+                return cls(self._data.loc[ykey, xkey])
+        raise TypeError
+    def __setitem__(self, key, value):
+        cls = type(self)
+        xkey, ykey = self._parse_key(key)
+        if xkey is None:
+            if type(ykey) is int:
+                self.updaterow(index=ykey, updates=value)
+                return
+            if type(ykey) is list:
+                raise NotImplementedError
+        if type(xkey) is str:
+            if type(ykey) is int:
+                self.setelem(column=xkey, index=ykey, value=value)
+                return
+            if type(ykey) is list:
+                self.setcolumnelems(column=xkey, indeces=ykey, values=value)
+                return
+        if type(xkey) is list:
+            if type(ykey) is int:
+                self.setrowelements(columns=xkey, index=ykey, values=value)
+                return
+            if type(ykey) is list:
+                self.setblock(columns=xkey, indeces=ykey, data=value)
+                return
+        raise TypeError
+    def setblock(self, columns, indeces, data):
+        cls = type(self)
+        data = cls(data).data
+        newrows = [row.to_dict() for i, row in data.iterrows()]
+        indeces = list(indeces)
+        length = max(len(indeces), len(newrows))
+        for n in range(length):
+            self.updaterow(
+                index=indeces[n],
+                updates=newrows[n],
+            )
+    def setcolumnelems(self, column, indeces, values):
+        indeces = list(indeces)
+        values = list(values)
+        length = max(len(indeces), len(values))
+        for n in range(length):
+            self.setelem(
+                column=column, 
+                index=indeces[n], 
+                value=values[n],
+            )
+    def setrowelems(self, columns, index, values):
+        columns = list(columns)
+        values = list(values)
+        length = max(len(columns), len(values))
+        for n in range(length):
+            self.setelem(
+                column=columns[n], 
+                index=index, 
+                value=values[n],
+            )
+    def updaterow(self, index, updates):
+        updates = dict(updates)
+        for column, value in updates.items():
+            self.setelem(
+                column=column, 
+                index=index, 
+                value=value,
+            )
+    def setelem(self, column, index, value):
+        if type(column) is not str:
+            raise TypeError
+        if column not in self.fieldnames:
+            raise KeyError
+        if type(index) is not int:
+            raise TypeError
+        if (index < 0) or (index >= self.height):
+            raise IndexError
+        self._data.at[index, column] = str(value)
