@@ -272,3 +272,6 @@ class Simple_TSVUnit(StrBasedUnit):
         if len(set(columns)) != len(columns):
             raise ValueError
         return _pd.DataFrame(lines, columns=columns)
+    @property
+    def fieldnames(self):
+        return tuple(self._data.columns)

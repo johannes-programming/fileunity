@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fileunity"
-version = "1.0.2"
+version = "1.0.3"
 description = "easy data objects to load and save"
 readme = "README.rst"
 authors = [
