@@ -111,7 +111,7 @@ class StrBasedUnit(BaseUnit):
     # solid
     @classmethod
     def by_str(cls, string):
-        raise cls(cls.data_by_str(string))
+        return cls(cls.data_by_str(string))
     def __str__(self):
         return self.str_by_data(self.data)
     def __repr__(self):
