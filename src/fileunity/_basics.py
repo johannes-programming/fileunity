@@ -268,10 +268,20 @@ class Simple_TSVUnit(StrBasedUnit):
             if '"' in lines[y]:
                 raise ValueError
             lines[y] = lines[y].split('\t')
-        columns = lines.pop(0)
-        if len(set(columns)) != len(columns):
+        fieldnames = lines.pop(0)
+        if len(set(fieldnames)) != len(fieldnames):
             raise ValueError
-        return _pd.DataFrame(lines, columns=columns)
+        return _pd.DataFrame(lines, columns=fieldnames)
+
+
+    @classmethod
+    def _str(cls, value):
+        value = str(value)
+        if '"' in value:
+            raise ValueError
+        if '\t' in value:
+            raise ValueError
+        return value
 
 
 
@@ -280,7 +290,7 @@ class Simple_TSVUnit(StrBasedUnit):
         return list(self._data.columns)
     @fieldnames.setter
     def fieldnames(self, value):
-        value = [str(x) for x in value]
+        value = [self._str(x) for x in value]
         self._data.columns = value
     @property
     def shape(self):
@@ -291,7 +301,14 @@ class Simple_TSVUnit(StrBasedUnit):
     @property
     def height(self):
         return self.shape[0]
-    def _parse_key_to_pair(self, key):
+
+
+
+
+
+
+    # key parsing
+    def _rawkeypair(self, key):
         if type(key) is tuple:
             return key
         if key is None:
@@ -308,11 +325,11 @@ class Simple_TSVUnit(StrBasedUnit):
             else:
                 return (None, key)
         raise TypeError
-    def _parse_key(self, key):
-        xkey, ykey = self._parse_key_to_pair(key)
-        ykey = self._parse_ykey(ykey)
+    def _keypair(self, key):
+        xkey, ykey = self._rawkeypair(key)
+        ykey = self._ykey(ykey)
         return (xkey, ykey)
-    def _parse_ykey(self, key):
+    def _ykey(self, key):
         if key is None:
             return list(range(self.height))
         if type(key) is int:
@@ -335,8 +352,37 @@ class Simple_TSVUnit(StrBasedUnit):
         indeces = list(range(self.height))
         indeces = indeces[key]
         return indeces
+
+
+    def _lockstep(*runs):
+        runs = [list(x) for x in runs]
+        while True:
+            try:
+                shot = [run.pop(0) for run in runs]
+            except IndexError:
+                return
+            else:
+                yield shot
+
+
+
+
+
+
+
+
+
+
     def __delitem__(self, key):
-        xkey, ykey = self._parse_key(key)
+        self.delitem(*self._keypair(key))
+    def __getitem__(self, key):
+        return self.getitem(*self._keypair(key))
+    def __setitem__(self, key, value):
+        self.setitem(*self._keypair(key))
+
+
+
+    def delitem(self, xkey, ykey):
         if xkey is None:
             xkey = self.fieldnames
         if type(xkey) is str:
@@ -348,9 +394,8 @@ class Simple_TSVUnit(StrBasedUnit):
             self._data.drop(index=ykey, inplace=True)
             return
         raise TypeError
-    def __getitem__(self, key):
+    def getitem(self, xkey, ykey):
         cls = type(self)
-        xkey, ykey = self._parse_key(key)
         if xkey is None:
             if type(ykey) is int:
                 return self._data.loc[ykey].to_dict()
@@ -360,38 +405,37 @@ class Simple_TSVUnit(StrBasedUnit):
             if type(ykey) is int:
                 return str(self._data.at[ykey, xkey])
             if type(ykey) is list:
-                return self._data.loc[ykey, xkey].tolist()
+                return [str(x) for x in self._data.loc[ykey, xkey].tolist()]
         elif type(xkey) is list:
             if type(ykey) is int:
-                return self._data.loc[ykey, xkey].tolist()
+                return [str(x) for x in self._data.loc[ykey, xkey].tolist()]
             if type(ykey) is list:
                 return cls(self._data.loc[ykey, xkey])
         raise TypeError
-    def __setitem__(self, key, value):
+    def setitem(self, xkey, ykey, value):
         cls = type(self)
-        xkey, ykey = self._parse_key(key)
         if xkey is None:
             if type(ykey) is int:
-                self.updaterow(index=ykey, updates=value)
+                self.updaterow(index=ykey, update=value)
                 return
             if type(ykey) is list:
                 raise NotImplementedError
         if type(xkey) is str:
             if type(ykey) is int:
-                self.setelem(column=xkey, index=ykey, value=value)
+                self.setelem(fieldname=xkey, index=ykey, value=value)
                 return
             if type(ykey) is list:
-                self.setcolumnelems(column=xkey, indeces=ykey, values=value)
+                self.setcolumnelems(fieldname=xkey, indeces=ykey, values=value)
                 return
         if type(xkey) is list:
             if type(ykey) is int:
-                self.setrowelements(columns=xkey, index=ykey, values=value)
+                self.setrowelements(fieldnames=xkey, index=ykey, values=value)
                 return
             if type(ykey) is list:
-                self.setblock(columns=xkey, indeces=ykey, data=value)
+                self.setblock(fieldnames=xkey, indeces=ykey, data=value)
                 return
         raise TypeError
-    def setblock(self, columns, indeces, data):
+    def setblock(self, fieldnames, indeces, data):
         cls = type(self)
         data = cls(data).data
         newrows = [row.to_dict() for i, row in data.iterrows()]
@@ -400,43 +444,43 @@ class Simple_TSVUnit(StrBasedUnit):
         for n in range(length):
             self.updaterow(
                 index=indeces[n],
-                updates=newrows[n],
+                update=newrows[n],
             )
-    def setcolumnelems(self, column, indeces, values):
+    def setcolumnelems(self, fieldname, indeces, values):
         indeces = list(indeces)
         values = list(values)
         length = max(len(indeces), len(values))
         for n in range(length):
             self.setelem(
-                column=column, 
+                fieldname=fieldname, 
                 index=indeces[n], 
                 value=values[n],
             )
-    def setrowelems(self, columns, index, values):
-        columns = list(columns)
+    def setrowelems(self, fieldnames, index, values):
+        fieldnames = list(fieldnames)
         values = list(values)
-        length = max(len(columns), len(values))
+        length = max(len(fieldnames), len(values))
         for n in range(length):
             self.setelem(
-                column=columns[n], 
+                fieldname=fieldnames[n], 
                 index=index, 
                 value=values[n],
             )
-    def updaterow(self, index, updates):
-        updates = dict(updates)
-        for column, value in updates.items():
+    def updaterow(self, index, update):
+        update = dict(update)
+        for fieldname, value in update.items():
             self.setelem(
-                column=column, 
+                fieldname=fieldname, 
                 index=index, 
                 value=value,
             )
-    def setelem(self, column, index, value):
-        if type(column) is not str:
+    def setelem(self, fieldname, index, value):
+        if type(fieldname) is not str:
             raise TypeError
-        if column not in self.fieldnames:
+        if fieldname not in self.fieldnames:
             raise KeyError
         if type(index) is not int:
             raise TypeError
         if (index < 0) or (index >= self.height):
             raise IndexError
-        self._data.at[index, column] = str(value)
+        self._data.at[index, fieldname] = str(value)
