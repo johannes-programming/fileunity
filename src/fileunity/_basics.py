@@ -181,6 +181,11 @@ class TOMLUnit(StrBasedUnit):
         return _tomllib.loads(string)
 
     # solid
+    def get(self, *keys, default=None):
+        try:
+            return self._getitem(self.data, key)
+        except KeyError:
+            return default
     @classmethod
     def _getitem(cls, data, key):
         if type(key) is str:
@@ -208,15 +213,28 @@ class TOMLUnit(StrBasedUnit):
         self.data = data
     def __len__(self):
         return len(self._data)
+    @classmethod
+    def _add_dicts(cls, dictA, dictB):
+        dictA = dict(dictA)
+        dictB = dict(dictB)
+        for k, v in dictB.items():
+            if k not in dictA.keys():
+                dictA[k] = v
+                continue
+            if type(dictA[k]) is dict:
+                dictA[k] = cls._add_dicts(dictA[k], dictB[k])
+                continue
+            raise KeyError(k)
+        return dictA
     def __add__(self, other):
         cls = type(self)
         other = cls(other)
-        x = dict(**self._data, **other._data)
+        x = self._add_dicts(self._data, other._data)
         return cls(x)
     def __radd__(self, other):
         cls = type(self)
         other = cls(other)
-        x = dict(**other._data, **self._data)
+        x = self._add_dicts(other._data, self._data)
         return cls(x)
     def clear(self):
         self._data.clear()
