@@ -16,6 +16,12 @@ License
 
 This project is licensed under the MIT License.
 
+Links
+-----
+
+* `Download <https://pypi.org/project/fileunity/#files>`_
+* `Source <https://github.com/johannes-programming/fileunity>`_
+
 Credits
 -------
 - Author: Johannes
