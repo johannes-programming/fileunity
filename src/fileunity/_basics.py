@@ -11,11 +11,15 @@ class _Stream:
     def __init__(self, file):
         self.file = file
     def read(self):
-        return cls._unitclass.load(self.file)
+        if self.file == "-":
+            raise NotImplementedError
+        return self.unitclass().load(self.file)
     def write(self, unit):
-        if type(unit) is not self._unitclass:
+        if type(unit) is not self.unitclass():
             raise TypeError
-        unit.save(self.file)
+        if self.file == "-":
+            return print(unit)
+        return unit.save(self.file)
     def __str__(self):
         cls = type(self)
         return f"{cls}(file={self.file})"
@@ -58,21 +62,18 @@ class BaseUnit:
     def load(cls, file):
         return cls(cls.data_loading(file))
     def save(self, file):
-        self.data_saving(file, self._data)
+        return self.data_saving(file, self._data)
 
     @classmethod
-    def streamclass(self):
-        cls = type(self)
-        try:
-            return cls.streamclass
-        except:
-            pass
-        cls.streamclass = type(
-            f"{cls}Stream",
-            [_Stream],
+    def streamclass(cls):
+        if hasattr(cls, '_streamclass'):
+            return cls._streamclass
+        cls._streamclass = type(
+            f"{cls.__name__}Stream",
+            (_Stream,),
             {'_unitclass':cls},
         )
-        return cls.streamclass
+        return cls._streamclass
     @classmethod
     def stream(cls, file):
         return cls.streamclass()(file)
@@ -126,8 +127,8 @@ class TextUnit(StrBasedUnit):
     def str_by_data(cls, data):
         return '\n'.join(str(x) for x in data)
     @classmethod
-    def data_default(cls, file, data):
-        return list()
+    def data_default(cls):
+        return [""]
 
     # solid
     def clear(self):
@@ -293,3 +294,6 @@ class Simple_TSVUnit(StrBasedUnit):
     @property
     def fieldnames(self):
         return tuple(self._data.columns)
+
+def is_streamclass(value, /):
+    return issubclass(value, _Stream)
