@@ -4,7 +4,7 @@ import pandas as _pd
 import tomli_w as _tomli_w
 
 
-class _Stream:
+class _Handler:
     @classmethod
     def unitclass(cls):
         return cls._unitclass
@@ -65,18 +65,18 @@ class BaseUnit:
         return self.data_saving(file, self._data)
 
     @classmethod
-    def streamclass(cls):
-        if hasattr(cls, '_streamclass'):
-            return cls._streamclass
-        cls._streamclass = type(
-            f"{cls.__name__}Stream",
-            (_Stream,),
+    def handlerclass(cls):
+        if hasattr(cls, '_handlerclass'):
+            return cls._handlerclass
+        cls._handlerclass = type(
+            f"{cls.__name__}Handler",
+            (_Handler,),
             {'_unitclass':cls},
         )
-        return cls._streamclass
+        return cls._handlerclass
     @classmethod
-    def stream(cls, file):
-        return cls.streamclass()(file)
+    def handler(cls, file):
+        return cls.handlerclass()(file)
 
 
 class StrBasedUnit(BaseUnit):
@@ -95,8 +95,8 @@ class StrBasedUnit(BaseUnit):
         return cls.data_by_str(string)
     @classmethod
     def data_loading(cls, file):
-        with open(file, "r") as s:
-            string = s.read()
+        with open(file, "r") as stream:
+            string = stream.read()
         if string.endswith('\n'):
             string = string[:-1]
         return cls.data_by_str(string)
@@ -295,5 +295,5 @@ class Simple_TSVUnit(StrBasedUnit):
     def fieldnames(self):
         return tuple(self._data.columns)
 
-def is_streamclass(value, /):
-    return issubclass(value, _Stream)
+def is_handlerclass(value, /):
+    return issubclass(value, _Handler)
