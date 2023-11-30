@@ -1,6 +1,9 @@
+import os as _os
+import tempfile as _tmp
 import tomllib as _tomllib
 
 import pandas as _pd
+import simple_tsv as _tsv
 import tomli_w as _tomli_w
 
 
@@ -264,33 +267,20 @@ class Simple_TSVUnit(StrBasedUnit):
         return _pd.DataFrame({})
     @classmethod
     def str_by_data(cls, data):
-        data = _pd.DataFrame(data)
-        lines = list()
-        lines.append(list(data.columns))
-        for i, row in data.iterrows():
-            lines.append(list(row))
-        h, w = data.shape
-        h += 1
-        for y in range(h):
-            for x in range(w):
-                lines[y][x] = str(lines[y][x])
-                if '"' in lines[y][x]:
-                    raise ValueError
-                if '\t' in lines[y][x]:
-                    raise ValueError
-            lines[y] = '\t'.join(lines[y])
-        return TextUnit.str_by_data(lines)
+        with _tmp.TemporaryDirectory() as tmpdir:
+            tmpfile = _os.path.join(tmpdir, "a.tsv")
+            _tsv.write_DataFrame(tmpfile, data)
+            textUnit = TextUnit.load(tmpfile)
+        ans = str(textUnit)
+        return ans
     @classmethod
     def data_by_str(cls, string):
-        lines = TextUnit.data_by_str(string)
-        for y in range(len(lines)):
-            if '"' in lines[y]:
-                raise ValueError
-            lines[y] = lines[y].split('\t')
-        columns = lines.pop(0)
-        if len(set(columns)) != len(columns):
-            raise ValueError
-        return _pd.DataFrame(lines, columns=columns)
+        textUnit = TextUnit.by_str(string)
+        with _tmp.TemporaryDirectory() as tmpdir:
+            tmpfile = _os.path.join(tmpdir, "a.tsv")
+            textUnit.save(tmpfile)
+            ans = _tsv.read_DataFrame(tmpfile)
+        return ans
     @property
     def fieldnames(self):
         return tuple(self._data.columns)
