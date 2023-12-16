@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fileunity"
-version = "1.2.1"
+version = "1.3.0"
 description = "easy data objects to load and save"
 readme = "README.rst"
 authors = [
@@ -19,11 +19,10 @@ classifiers = [
 ]
 keywords = []
 dependencies = [
-    "tomli_w>=1.0",
-    "seqreads>=0.1",
-    'openpyxl>=3.0.10',
+    "openpyxl>=3.0.10",
     "pandas>=2.1.2",
     "simple_tsv>=1.0",
+    "tomli_w>=1.0",
 ]
 requires-python = ">=3.11"
 
